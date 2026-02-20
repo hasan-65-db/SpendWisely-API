@@ -1,10 +1,10 @@
 # SpendWisely API 
-A secure, production-ready REST API for personal expense tracking. Built to demonstrate the transition from Data Science to robust Backend Engineering.
+A secure, production ready REST API for personal expense tracking. Built to demonstrate the transition from Data Science to robust Backend Engineering.
 
 ##  Key Features
 * **Full CRUD Functionality**: Create, Read, Update, and Delete financial transactions.
 * **JWT Authentication**: Secure user login and stateless authorization using OAuth2 with Bearer Tokens.
-* **Row-Level Security**: Sophisticated ownership validation—users can only manage their own data.
+* **Row-Level Security**: Sophisticated ownership validation users can only manage their own data.
 * **Relational Database**: Powered by SQLite and SQLAlchemy ORM for reliable data persistence.
 
 ##  Tech Stack
