@@ -6,6 +6,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import Response, Query
 from sqlalchemy import or_, func
 from datetime import date
+import redis, json
+from worker import send_registration_email
+from redis_client import redis_client
+from fastapi.encoders import jsonable_encoder
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -21,6 +25,7 @@ def post_expense(
       db.add(new_expense)
       db.commit()
       db.refresh(new_expense)
+      redis_client.delete(f"expenses_user_{current_user.id}")
       return new_expense
 
 @app.post("/users/",response_model=schemas.ResponseUser)
@@ -36,6 +41,7 @@ def post_user(user:schemas.CreateUser, db:Session=Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    send_registration_email.delay(user.email)
     return new_user
 
 @app.post("/login")
@@ -65,6 +71,7 @@ def delete_expense(
         raise HTTPException(status_code=403,detail="Not authorized to perform this action!")
     
     expense_query.delete(synchronize_session=False)
+    redis_client.delete(f"expenses_user_{current_user_id.id}")
     db.commit()
     return Response(status_code=204) #204 means success but nothing to show
 
@@ -82,6 +89,13 @@ def get_expenses(
     db: Session = Depends(get_db),
     current_user = Depends(oauth2.get_current_user)
 ):
+
+    cache_key = f"expenses_user_{current_user.id}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        print("Cache hit!")
+        return json.loads(cached_data)
+    print("Cache Miss!")
     # 1. Base query
     query = db.query(models.Transaction).filter(models.Transaction.owner_id == current_user.id)
     
@@ -107,7 +121,13 @@ def get_expenses(
     else:
         query = query.order_by(models.Transaction.amount.asc())
 
-    return query.limit(limit).all()
+    result =  query.limit(limit).all()
+    serialized_results = jsonable_encoder(result)
+    redis_client.setex(
+        cache_key,
+        300,
+        json.dumps(serialized_results)
+    )
     
 @app.put("/expenses/{expense_id}",response_model=schemas.ResponseTransaction)
 def update_transaction(
@@ -132,6 +152,25 @@ def update_transaction(
     transaction_query.update(transaction.dict(), synchronize_session=False)
 
     db.commit()
+    redis_client.delete(f"expenses_user_{current_user_id.id}")
     return transaction_query.first()
+
+
+
+
+
     
-     
+    
+
+
+
+   
+
+
+
+
+    
+    
+
+
+    

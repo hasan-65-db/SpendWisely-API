@@ -18,3 +18,6 @@ class Transaction(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     owner_id = Column(Integer, ForeignKey("users.id"))
     
+
+
+
